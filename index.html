@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<title>GTA Clone</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #000; font-family: monospace; }
+canvas { display: block; }
+#hud { position: absolute; top: 20px; left: 20px; color: #0f0; font-size: 12px; text-shadow: 2px 2px #000; pointer-events: none; z-index: 100; line-height: 1.4; }
+#timeDisplay { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 12px; text-shadow: 2px 2px #000; pointer-events: none; z-index: 100; }
+#carHealthBar { position: absolute; top: 80px; left: 20px; color: #fff; font-size: 12px; text-shadow: 2px 2px #000; pointer-events: none; z-index: 100; display: none; }
+#energyBar { position: absolute; bottom: 20px; left: 20px; color: #fff; font-size: 12px; text-shadow: 2px 2px #000; pointer-events: none; z-index: 100; }
+.ui-panel { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); color: white; padding: 30px; text-align: center; z-index: 200; font-family: Arial; display: none; }
+#fineUI { border: 3px solid #ff0000; }
+#policeUI { border: 3px solid #0000ff; }
+#menu { border: 3px solid gold; max-height: 80vh; overflow-y: auto; }
+#homeUI { border: 3px solid #00ff00; }
+#tvUI { border: 3px solid #ffff00; z-index: 210; }
+#garageUI { border: 3px solid #ff6600; max-height: 80vh; overflow-y: auto; }
+#bankUI { border: 3px solid #ffff00; }
+#courtUI { border: 5px solid #ff6600; color: orange; font-size: 18px; z-index: 300; }
+#phoneUI { border: none; border-radius: 20px; background: linear-gradient(135deg,#1e3c72,#2a5298); box-shadow: 0 0 30px rgba(0,0,0,0.5); z-index: 250; width: 350px; max-height: 70vh; overflow-y: auto; }
+#gpsUI { border: 3px solid #00ff00; z-index: 260; }
+#callsUI { border: none; border-radius: 20px; background: linear-gradient(135deg,#1e3c72,#2a5298); box-shadow: 0 0 30px rgba(0,0,0,0.5); z-index: 260; width: 350px; }
+#msgUI { border: 3px solid #00ff00; z-index: 270; }
+#gunShopUI { border: 3px solid #ff0000; }
+#inventoryUI { border: 3px solid #ffff00; }
+#arrestScreen { position: absolute; display: none; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: red; align-items: center; justify-content: center; font-family: Arial; z-index: 300; flex-direction: column; }
+button { padding: 8px 14px; cursor: pointer; margin: 4px; }
+</style>
+</head>
+<body>
+<div id="hud"></div>
+<div id="timeDisplay"></div>
+<div id="carHealthBar"></div>
+<div id="energyBar"></div>
+
+<div id="fineUI" class="ui-panel">
+  <h2>POKUTA</h2>
+  <p>Máš pokutu! Zaplať 200 Kč na policejní stanici do 5 minut.</p>
+  <button id="closeFine">Zavřít</button>
+</div>
+
+<div id="policeUI" class="ui-panel">
+  <h2>POLICEJNÍ STANICE</h2>
+  <p>Pokuta: 200 Kč</p>
+  <button id="payFine" style="background:#ff0000;color:#fff;">Zaplatit</button>
+  <button id="exitPolice">Odejít E</button>
+</div>
+
+<div id="menu" class="ui-panel"></div>
+
+<div id="homeUI" class="ui-panel">
+  <h2>DOMOV</h2>
+  <p>Energie: <span id="homeEnergy">100</span>/100</p>
+  <button id="sleepBtn" style="background:#00ff00;color:#000;border:none;">Spát 6 hodin</button>
+  <button id="tvBtn">TV</button>
+  <button id="exitHome">Odejít E</button>
+</div>
+
+<div id="tvUI" class="ui-panel">
+  <h2>TELEVIZE</h2>
+  <button id="ch1">1 Zprávy</button>
+  <button id="ch2">2 Relax</button>
+  <button id="ch3">3 Vaření</button>
+  <button id="ch4">4 Nábytek</button>
+  <button id="tvClose">Zavřít</button>
+  <p id="tvContent" style="margin-top:20px;font-size:14px;"></p>
+</div>
+
+<div id="garageUI" class="ui-panel">
+  <h2>AUTOSERVIS</h2>
+  <button id="colorBtn">Barvy 10 Kč</button>
+  <div id="colorPicker" style="display:none;margin:20px 0;"></div>
+  <p id="repairBtn" style="display:none;"><button id="fixBtn">Opravit auto 100 Kč</button></p>
+  <button id="exitGarage" style="margin-top:20px;">Odejít E</button>
+</div>
+
+<div id="bankUI" class="ui-panel">
+  <h2>BANKA</h2>
+  <p>V bance: <span id="bankMoney">0</span> Kč</p>
+  <button id="depositBtn">Vložit 100 Kč</button>
+  <button id="withdrawBtn">Vybrat 100 Kč</button>
+  <button id="robBtn" style="background:#ff0000;color:#fff;">Vykrást banku!</button>
+  <button id="exitBank">Odejít E</button>
+</div>
+
+<div id="courtUI" class="ui-panel"><h2>SOUD</h2><p id="courtMsg"></p></div>
+
+<div id="phoneUI" class="ui-panel">
+  <h2 style="margin:0 0 20px 0;">TELEFON</h2>
+  <div style="background:rgba(255,255,255,0.1);padding:15px;margin:10px 0;border-radius:10px;">
+    <p><strong>Peníze:</strong> <span id="phoneMoney">500</span> Kč</p>
+    <p><strong>Wanted:</strong> <span id="phoneWanted">0</span></p>
+    <p><strong>Banka:</strong> <span id="phoneBank">0</span> Kč</p>
+  </div>
+  <h3>PRÁCE</h3>
+  <button id="pizzaBtn" style="width:100%;padding:10px;margin:5px 0;background:#ff6600;color:white;border:none;">Rozvoz pizzy 50 Kč</button>
+  <button id="taxiBtn" style="width:100%;padding:10px;margin:5px 0;background:#ffff00;color:black;border:none;">Taxi 40 Kč</button>
+  <h3>SLUŽBY</h3>
+  <button id="uberBtn" style="width:100%;padding:10px;margin:5px 0;">Uber 15 Kč</button>
+  <button id="gpsBtn" style="width:100%;padding:10px;margin:5px 0;">GPS</button>
+  <button id="callsBtn" style="width:100%;padding:10px;margin:5px 0;">Volání</button>
+  <button id="phoneClose" style="width:100%;padding:10px;margin-top:10px;background:#f44336;color:white;border:none;border-radius:5px;">Zavřít U</button>
+</div>
+
+<div id="gpsUI" class="ui-panel">
+  <h2>GPS</h2>
+  <p>Aktuální pozice: <span id="gpsPos"></span></p>
+  <button id="gpsClose">Zavřít</button>
+</div>
+
+<div id="callsUI" class="ui-panel">
+  <h2 style="margin:0 0 20px 0;">VOLÁNÍ</h2>
+  <div style="background:rgba(255,255,255,0.1);padding:15px;margin:10px 0;border-radius:10px;">
+    <p><strong>Policie</strong></p>
+    <button id="callPolice">Volat</button>
+    <button id="msgPolice">Zpráva</button>
+  </div>
+  <div style="background:rgba(255,255,255,0.1);padding:15px;margin:10px 0;border-radius:10px;">
+    <p><strong>Kamarád</strong></p>
+    <button id="callFriend">Volat</button>
+    <button id="msgFriend">Zpráva</button>
+  </div>
+  <button id="callsClose" style="width:100%;padding:10px;margin-top:10px;background:#f44336;color:white;border:none;border-radius:5px;">Zavřít</button>
+</div>
+
+<div id="msgUI" class="ui-panel">
+  <h2>Zpráva</h2>
+  <input type="text" id="msgInput" style="width:100%;padding:10px;margin-bottom:10px;">
+  <button id="sendMsg">Odeslat</button>
+  <button id="msgClose">Zavřít</button>
+</div>
+
+<div id="gunShopUI" class="ui-panel">
+  <h2>ZBROJNICE</h2>
+  <p>Pistol - 200 Kč</p><button class="buyWeapon" data-name="Pistol" data-price="200">Koupit</button><br>
+  <p>Rifle - 500 Kč</p><button class="buyWeapon" data-name="Rifle" data-price="500">Koupit</button><br>
+  <p>Shotgun - 800 Kč</p><button class="buyWeapon" data-name="Shotgun" data-price="800">Koupit</button><br>
+  <button id="exitGunShop" style="margin-top:10px;">Odejít E</button>
+</div>
+
+<div id="inventoryUI" class="ui-panel">
+  <h2>INVENTÁŘ</h2>
+  <div id="inventoryList"></div>
+  <button id="closeInventory">Zavřít</button>
+</div>
+
+<div id="arrestScreen">
+  <h1>ZATČENI!</h1>
+  <p id="arrestMsg"></p>
+</div>
+
+<script>
+var script = document.createElement('script');
+script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+document.head.appendChild(script);
+script.onload = () => {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x87CEEB);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 5, 10);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.style.margin = '0';
+    document.body.style.overflow = 'hidden';
+    document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+    let gameTime = {hour: 8, minute: 0, day: 1};
+    let stats = {
+        money: 500, wanted: 0, inCar: false, volume: 0.05, gameState: 'play', inJail: false, jailTime: 0,
+        radioOn: false, phoneOpen: false, inGarage: false, carHealth: 100, uberActive: false, uberCar: null,
+        inHome: false, workActive: false, workType: null, currentDelivery: null, energy: 100, onMotorbike: false,
+        inBank: false, bankMoney: 0, inCourt: false, courtTime: 0, atBusStop: false, busActive: false, busDest: null,
+        hasFine: false, fineTimer: 0, inComputer: false, inventory: [], currentWeapon: null
+    };
+    let keys = {};
+    let yaw = 0, velocityY = 0;
+    let playerCar = null, motorbikeVehicle = null;
+    let carVelocity = new THREE.Vector3(0, 0, 0);
+    let leftSkidPositions = [];
+    let rightSkidPositions = [];
+    let skidLines = { left: null, right: null };
+    let smokeParticles = [];
+    const MAX_SKID_LENGTH = 50;
+    const MAX_SMOKE_PARTICLES = 50;
+    const DRIFT_ANGLE_THRESHOLD = 15;
+    const MAX_SPEED = 0.8;
+    let escapeTimer = null;
+    const ESCAPE_DISTANCE = 50;
+    const ESCAPE_TIME = 5000;
+    let sirenSource = null;
+    let sirenFilter = null;
+    let trafficLights = [];
+    let trafficLightState = 'green';
+    let trafficLightTimer = 0;
+    const TRAFFIC_LIGHT_CYCLE = 10000;
+    const policeStationPos = new THREE.Vector3(60, 0, 60);
+    const jailPos = new THREE.Vector3(100, 0, 100);
+    const gunShopPos = new THREE.Vector3(80, 0, 80);
+
+    const gunShop = new THREE.Mesh(new THREE.BoxGeometry(10, 8, 10), new THREE.MeshPhongMaterial({color: 0x808080}));
+    gunShop.position.copy(gunShopPos);
+    gunShop.position.y = 4;
+    scene.add(gunShop);
+
+    setInterval(() => {
+        gameTime.minute += 10;
+        if(gameTime.minute >= 60) { gameTime.minute = 0; gameTime.hour += 1; }
+        if(gameTime.hour >= 24) { gameTime.hour = 0; gameTime.day += 1; }
+        if(stats.energy < 100 && !stats.inHome) stats.energy += 0.5;
+        if (stats.hasFine && stats.fineTimer > 0) {
+            stats.fineTimer -= 1000;
+            if (stats.fineTimer <= 0) {
+                stats.hasFine = false;
+                stats.wanted += 1;
+                alert('Čas na zaplacení pokuty vypršel! Dostal jsi wanted level.');
+            }
+        }
+        trafficLightTimer += 1000;
+        if (trafficLightTimer >= TRAFFIC_LIGHT_CYCLE) {
+            trafficLightState = trafficLightState === 'green' ? 'red' : 'green';
+            trafficLightTimer = 0;
+            trafficLights.forEach(tl => {
+                tl.children[0].material.color.setHex(trafficLightState === 'green' ? 0x00ff00 : 0xff0000);
+            });
+        }
+        if (stats.wanted > 0) {
+            const target = stats.inCar ? playerCar.position : stats.onMotorbike ? motorbikeVehicle.position : player.position;
+            if (target.distanceTo(copCar.position) > ESCAPE_DISTANCE) {
+                if (!escapeTimer) {
+                    escapeTimer = setTimeout(() => {
+                        stats.wanted = 0;
+                        alert('Utekl jsi policii! Wanted resetován.');
+                        escapeTimer = null;
+                    }, ESCAPE_TIME);
+                }
+            } else {
+                if (escapeTimer) { clearTimeout(escapeTimer); escapeTimer = null; }
+            }
+        }
+    }, 1000);
+
+    function formatTime() {
+        return `${String(gameTime.hour).padStart(2,'0')}:${String(gameTime.minute).padStart(2,'0')} Den ${gameTime.day}`;
+    }
+    function getRandomColor() {
+        const colors = [{name:'Cervena',hex:0xff0000},{name:'Modra',hex:0x0000ff},{name:'Zelena',hex:0x00ff00},
+            {name:'Zluta',hex:0xffff00},{name:'Oranzova',hex:0xff6600},{name:'Rozova',hex:0xff1493},
+            {name:'Purpurova',hex:0xff00ff},{name:'Tyrkysova',hex:0x00ffff},{name:'Stribna',hex:0xc0c0c0},{name:'Cerna',hex:0x111111}];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
+    function generateNPCAppearance() {
+        return {
+            clothColor: getRandomColor().hex, eyeColor: getRandomColor().hex, skinColor: 0xf4a460,
+            hairColor: getRandomColor().hex, hairStyle: Math.floor(Math.random() * 3), facialHair: Math.random() > 0.7,
+            eyebrowColor: getRandomColor().hex, mouthColor: 0xff6b9d + Math.floor(Math.random() * 0x1000),
+            noseSize: 0.08 + Math.random() * 0.06
+        };
+    }
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let gainNode = audioCtx.createGain();
+    gainNode.gain.value = stats.volume;
+    gainNode.connect(audioCtx.destination);
+    let engineSource = null;
+    let engineFilter = null;
+
+    function startNoise() {
+        const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        const src = audioCtx.createBufferSource();
+        src.buffer = buf; src.loop = true;
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass'; filter.frequency.value = 300;
+        src.connect(filter); filter.connect(gainNode);
+        src.start();
+    }
+    function startEngine() {
+        if(engineSource) return;
+        const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        engineSource = audioCtx.createBufferSource();
+        engineSource.buffer = buf; engineSource.loop = true;
+        engineFilter = audioCtx.createBiquadFilter();
+        engineFilter.type = 'lowpass'; engineFilter.frequency.value = 150;
+        engineSource.connect(engineFilter); engineFilter.connect(gainNode);
+        engineSource.start();
+    }
+    function stopEngine() {
+        if(engineSource) { engineSource.stop(); engineSource = null; engineFilter = null; }
+    }
+    function startSiren() {
+        if(sirenSource) return;
+        const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.sin(i / audioCtx.sampleRate * Math.PI * 800) * 0.5;
+        sirenSource = audioCtx.createBufferSource();
+        sirenSource.buffer = buf; sirenSource.loop = true;
+        sirenFilter = audioCtx.createBiquadFilter();
+        sirenFilter.type = 'bandpass'; sirenFilter.frequency.value = 600;
+        sirenSource.connect(sirenFilter); sirenFilter.connect(gainNode);
+        sirenSource.start();
+    }
+    function stopSiren() {
+        if(sirenSource) { sirenSource.stop(); sirenSource = null; sirenFilter = null; }
+    }
+
+    function getRearWheelWorldPositions() {
+        const matrix = playerCar.matrixWorld;
+        const leftRearLocal = new THREE.Vector3(-0.9, -0.3, -1.2);
+        const rightRearLocal = new THREE.Vector3(0.9, -0.3, -1.2);
+        const leftRearWorld = leftRearLocal.clone().applyMatrix4(matrix);
+        const rightRearWorld = rightRearLocal.clone().applyMatrix4(matrix);
+        leftRearWorld.y = 0.02; rightRearWorld.y = 0.02;
+        return { left: leftRearWorld, right: rightRearWorld };
+    }
+    function spawnSmoke(pos) {
+        if (smokeParticles.length >= MAX_SMOKE_PARTICLES) {
+            const old = smokeParticles.shift();
+            scene.remove(old);
+        }
+        const smoke = new THREE.Mesh(
+            new THREE.SphereGeometry(0.15 + Math.random() * 0.2, 8, 8),
+            new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.7 + Math.random() * 0.3 })
+        );
+        smoke.position.copy(pos);
+        scene.add(smoke);
+        smokeParticles.push(smoke);
+        const animateSmoke = () => {
+            smoke.material.opacity -= 0.015;
+            smoke.position.y += 0.08;
+            smoke.scale.multiplyScalar(1.02);
+            if (smoke.material.opacity > 0) requestAnimationFrame(animateSmoke);
+            else {
+                scene.remove(smoke);
+                const idx = smokeParticles.indexOf(smoke);
+                if (idx > -1) smokeParticles.splice(idx, 1);
+            }
+        };
+        animateSmoke();
+    }
+    function updateSkidLines() {
+        if (leftSkidPositions.length > 1) {
+            if (!skidLines.left) {
+                skidLines.left = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x111111, linewidth: 4 }));
+                scene.add(skidLines.left);
+            }
+            skidLines.left.geometry.dispose();
+            skidLines.left.geometry = new THREE.BufferGeometry().setFromPoints(leftSkidPositions);
+        }
+        if (rightSkidPositions.length > 1) {
+            if (!skidLines.right) {
+                skidLines.right = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0x111111, linewidth: 4 }));
+                scene.add(skidLines.right);
+            }
+            skidLines.right.geometry.dispose();
+            skidLines.right.geometry = new THREE.BufferGeometry().setFromPoints(rightSkidPositions);
+        }
+    }
+    function createCharacter(col, appearance) {
+        const app = appearance || generateNPCAppearance();
+        const g = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.8, 0.3), new THREE.MeshPhongMaterial({color: app.clothColor}));
+        body.position.y = 1; g.add(body);
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.3), new THREE.MeshPhongMaterial({color: app.skinColor}));
+        head.position.y = 1.6; g.add(head);
+        const eyeGeo = new THREE.SphereGeometry(0.08, 8, 8);
+        const eyeMat = new THREE.MeshPhongMaterial({color: app.eyeColor});
+        const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+        eyeL.position.set(-0.1, 1.75, 0.25); g.add(eyeL);
+        const eyeR = eyeL.clone(); eyeR.position.x = 0.1; g.add(eyeR);
+        const limbGeo = new THREE.BoxGeometry(0.2, 0.6, 0.2);
+        const armL = new THREE.Mesh(limbGeo, new THREE.MeshPhongMaterial({color: app.clothColor}));
+        armL.position.set(-0.4, 1.1, 0); g.add(armL);
+        const armR = armL.clone(); armR.position.x = 0.4; g.add(armR);
+        const legL = new THREE.Mesh(limbGeo, new THREE.MeshPhongMaterial({color: 0x1a1a2e}));
+        legL.position.set(-0.2, 0.4, 0); g.add(legL);
+        const legR = legL.clone(); legR.position.x = 0.2; g.add(legR);
+        g.parts = { armL, armR, legL, legR };
+        return g;
+    }
+    function createCar(color) {
+        const car = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshPhongMaterial({color}));
+        car.add(body);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.8, 2), new THREE.MeshPhongMaterial({color}));
+        roof.position.y = 0.9; car.add(roof);
+        const wheelGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.2, 8);
+        const wheelMat = new THREE.MeshPhongMaterial({color: 0x222222});
+        [[-0.9,-0.3,1.2],[0.9,-0.3,1.2],[-0.9,-0.3,-1.2],[0.9,-0.3,-1.2]].forEach(pos => {
+            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+            wheel.rotation.z = Math.PI/2;
+            wheel.position.set(pos[0], pos[1], pos[2]);
+            car.add(wheel);
+        });
+        return car;
+    }
+    function createMotorbike() {
+        const bike = new THREE.Group();
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1, 2), new THREE.MeshPhongMaterial({color: 0xaa0000}));
+        bike.add(frame);
+        const wheel1 = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.15, 8), new THREE.MeshPhongMaterial({color: 0x222}));
+        wheel1.rotation.z = Math.PI/2;
+        wheel1.position.set(-0.5, 0.3, -0.8);
+        bike.add(wheel1);
+        const wheel2 = wheel1.clone();
+        wheel2.position.x = 0.5;
+        bike.add(wheel2);
+        return bike;
+    }
+    function createTrafficLight(pos) {
+        const tl = new THREE.Group();
+        const light = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1, 0.5), new THREE.MeshPhongMaterial({color: 0x00ff00}));
+        light.position.y = 3; tl.add(light);
+        const pole = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 0.2), new THREE.MeshPhongMaterial({color: 0x333333}));
+        tl.add(pole);
+        tl.position.copy(pos);
+        scene.add(tl);
+        return tl;
+    }
+
+    // Home
+    const homeWallMat = new THREE.MeshPhongMaterial({color: 0xdaa520});
+    const home = new THREE.Group();
+    const wall1 = new THREE.Mesh(new THREE.BoxGeometry(10, 6, 1), homeWallMat); wall1.position.set(-80,3,-60); home.add(wall1);
+    const wall2 = new THREE.Mesh(new THREE.BoxGeometry(1, 6, 15), homeWallMat); wall2.position.set(-85,3,-52.5); home.add(wall2);
+    const wall3 = new THREE.Mesh(new THREE.BoxGeometry(1, 6, 15), homeWallMat); wall3.position.set(-75,3,-52.5); home.add(wall3);
+    const homeRoof = new THREE.Mesh(new THREE.BoxGeometry(10, 1, 15), new THREE.MeshPhongMaterial({color: 0xff4500})); homeRoof.position.set(-80,6,-52.5); home.add(homeRoof);
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(2, 0.5, 3), new THREE.MeshPhongMaterial({color: 0x8b0000})); bed.position.set(-82,0.5,-50); home.add(bed);
+    const sofa = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 1.5), new THREE.MeshPhongMaterial({color: 0x228b22})); sofa.position.set(-78,0.75,-58); home.add(sofa);
+    const tv = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2, 0.2), new THREE.MeshPhongMaterial({color: 0x000000})); tv.position.set(-77,1.5,-54); home.add(tv);
+    scene.add(home);
+    const homePos = new THREE.Vector3(-80, 0, -52.5);
+
+    // Delivery houses
+    const deliveryHouses = [];
+    [{pos:new THREE.Vector3(30,0,30),number:1,color:0xff6666},{pos:new THREE.Vector3(50,0,40),number:2,color:0x66ff66},
+     {pos:new THREE.Vector3(-20,0,50),number:3,color:0x6666ff},{pos:new THREE.Vector3(0,0,-40),number:4,color:0xffff66}].forEach(h => {
+        const house = new THREE.Mesh(new THREE.BoxGeometry(5, 4, 5), new THREE.MeshPhongMaterial({color: h.color}));
+        house.position.copy(h.pos); house.position.y = 2; scene.add(house);
+        const houseRoof = new THREE.Mesh(new THREE.BoxGeometry(5, 1, 5), new THREE.MeshPhongMaterial({color: 0x8b4513}));
+        houseRoof.position.copy(h.pos); houseRoof.position.y = 4.5; scene.add(houseRoof);
+        deliveryHouses.push({pos: h.pos.clone(), number: h.number, color: h.color});
+    });
+
+    // Bank
+    const bank = new THREE.Group();
+    const bankWall = new THREE.Mesh(new THREE.BoxGeometry(12, 8, 12), new THREE.MeshPhongMaterial({color: 0xc0c0c0})); bankWall.position.set(70,4,-50); bank.add(bankWall);
+    const bankRoof = new THREE.Mesh(new THREE.BoxGeometry(12, 1, 12), new THREE.MeshPhongMaterial({color: 0x808080})); bankRoof.position.set(70,8,-50); bank.add(bankRoof);
+    scene.add(bank);
+    const bankPos = new THREE.Vector3(70, 0, -50);
+
+    // Court
+    const court = new THREE.Group();
+    const courtWall = new THREE.Mesh(new THREE.BoxGeometry(15, 10, 12), new THREE.MeshPhongMaterial({color: 0x8b4513})); courtWall.position.set(-70,5,60); court.add(courtWall);
+    const courtRoof = new THREE.Mesh(new THREE.BoxGeometry(15, 2, 12), new THREE.MeshPhongMaterial({color: 0x654321})); courtRoof.position.set(-70,10.5,60); court.add(courtRoof);
+    scene.add(court);
+    const courtPos = new THREE.Vector3(-70, 0, 60);
+
+    // Bus stops
+    [new THREE.Vector3(-30,0,0), new THREE.Vector3(30,0,-30), new THREE.Vector3(50,0,20)].forEach(pos => {
+        const busStop = new THREE.Mesh(new THREE.BoxGeometry(3,3,1), new THREE.MeshPhongMaterial({color: 0xffff00}));
+        busStop.position.copy(pos); busStop.position.y = 1.5; scene.add(busStop);
+    });
+
+    // Player
+    const player = createCharacter(0xff0000, {clothColor:0xff0000, eyeColor:0x00aaff, skinColor:0xf4a460, hairColor:0x222222});
+    player.position.set(0, 0, 0);
+    scene.add(player);
+
+    playerCar = createCar(0xff6600);
+    playerCar.position.set(10, 0.5, 10);
+    scene.add(playerCar);
+
+    motorbikeVehicle = createMotorbike();
+    motorbikeVehicle.position.set(-80, 0.3, -45);
+    scene.add(motorbikeVehicle);
+
+    const copCar = new THREE.Group();
+    const carBody2 = new THREE.Mesh(new THREE.BoxGeometry(2, 1, 4), new THREE.MeshPhongMaterial({color: 0x0000aa}));
+    copCar.add(carBody2);
+    copCar.position.set(40, 0.5, 40);
+    scene.add(copCar);
+
+    // Garage
+    const wallMat = new THREE.MeshPhongMaterial({color: 0x8b7355});
+    const garage = new THREE.Group();
+    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(15, 8, 1), wallMat); frontWall.position.set(-50,4,30); garage.add(frontWall);
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(15, 8, 1), wallMat); backWall.position.set(-50,4,10); garage.add(backWall);
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(1, 8, 20), wallMat); leftWall.position.set(-57.5,4,20); garage.add(leftWall);
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(1, 8, 20), wallMat); rightWall.position.set(-42.5,4,20); garage.add(rightWall);
+    const garageRoof = new THREE.Mesh(new THREE.BoxGeometry(15, 1, 20), new THREE.MeshPhongMaterial({color: 0x555555})); garageRoof.position.set(-50,8,20); garage.add(garageRoof);
+    scene.add(garage);
+    const garagePos = new THREE.Vector3(-50, 0, 20);
+
+    // Roads
+    const roadMaterial = new THREE.MeshPhongMaterial({color: 0x333333});
+    for(let i = -500; i < 500; i += 50) {
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(10, 50), roadMaterial);
+        road.rotation.x = -Math.PI/2; road.position.set(0, 0.01, i); scene.add(road);
+        const marking = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 3), new THREE.MeshPhongMaterial({color: 0xffff00}));
+        marking.rotation.x = -Math.PI/2; marking.position.set(0, 0.02, i); scene.add(marking);
+    }
+    for(let i = -500; i < 500; i += 50) {
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(50, 10), roadMaterial);
+        road.rotation.x = -Math.PI/2; road.position.set(i, 0.01, 0); scene.add(road);
+    }
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(1000, 1000), new THREE.MeshPhongMaterial({color: 0x2d5a27}));
+    ground.rotation.x = -Math.PI/2; scene.add(ground);
+
+    const light2 = new THREE.AmbientLight(0xffffff, 0.8); scene.add(light2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5); dirLight.position.set(10,10,10); scene.add(dirLight);
+
+    const npcs = [];
+    for(let i = 0; i < 16; i++) {
+        let n = createCharacter(0x3333ff, generateNPCAppearance());
+        n.position.set(20 + (Math.random()-0.5)*4, 0, Math.random()*30-15);
+        n.direction = Math.random() > 0.5 ? 1 : -1;
+        scene.add(n);
+        npcs.push(n);
+    }
+
+    // Jail walls
+    for(let i = 0; i < 4; i++) {
+        const wall = new THREE.Mesh(
+            new THREE.BoxGeometry(i%2===0?20:2, 5, i%2===0?2:20),
+            new THREE.MeshPhongMaterial({color: 0x555555})
+        );
+        const angle = i * Math.PI/2;
+        wall.position.set(jailPos.x + Math.cos(angle)*10, 2.5, jailPos.z + Math.sin(angle)*10);
+        scene.add(wall);
+    }
+
+    // Traffic lights
+    [new THREE.Vector3(0,0,20), new THREE.Vector3(0,0,-20), new THREE.Vector3(20,0,0), new THREE.Vector3(-20,0,0)].forEach(pos => {
+        trafficLights.push(createTrafficLight(pos));
+    });
+
+    // Police station
+    const policeStation = new THREE.Mesh(new THREE.BoxGeometry(10,8,10), new THREE.MeshPhongMaterial({color: 0x000000}));
+    policeStation.position.copy(policeStationPos); policeStation.position.y = 4; scene.add(policeStation);
+    const policeRoof = new THREE.Mesh(new THREE.BoxGeometry(10,1,10), new THREE.MeshPhongMaterial({color: 0x333333}));
+    policeRoof.position.copy(policeStationPos); policeRoof.position.y = 8.5; scene.add(policeRoof);
+
+    // Jail building
+    const jailBuilding = new THREE.Mesh(new THREE.BoxGeometry(15,10,15), new THREE.MeshPhongMaterial({color: 0x555555}));
+    jailBuilding.position.copy(jailPos); jailBuilding.position.y = 5; scene.add(jailBuilding);
+
+    // DOM refs
+    const hud = document.getElementById('hud');
+    const timeDisplay = document.getElementById('timeDisplay');
+    const carHealthBar = document.getElementById('carHealthBar');
+    const energyBar = document.getElementById('energyBar');
+    const fineUI = document.getElementById('fineUI');
+    const policeUI = document.getElementById('policeUI');
+    const menu = document.getElementById('menu');
+    const homeUI = document.getElementById('homeUI');
+    const tvUI = document.getElementById('tvUI');
+    const garageUI = document.getElementById('garageUI');
+    const bankUI = document.getElementById('bankUI');
+    const courtUI = document.getElementById('courtUI');
+    const phoneUI = document.getElementById('phoneUI');
+    const gpsUI = document.getElementById('gpsUI');
+    const callsUI = document.getElementById('callsUI');
+    const msgUI = document.getElementById('msgUI');
+    const gunShopUI = document.getElementById('gunShopUI');
+    const inventoryUI = document.getElementById('inventoryUI');
+    const arrestScreen = document.getElementById('arrestScreen');
+
+    window.addEventListener('keydown', (e) => {
+        keys[e.code] = true;
+        if(e.code === 'KeyJ') {
+            stats.gameState = stats.gameState === 'play' ? 'menu' : 'play';
+            menu.style.display = stats.gameState === 'menu' ? 'block' : 'none';
+            if(stats.gameState === 'menu') {
+                document.exitPointerLock();
+                menu.innerHTML = `<h2>MENU</h2><p>Peníze: ${stats.money} Kč<br>V bance: ${stats.bankMoney} Kč<br>Hledanost: ${stats.wanted}</p><button id="closeMenu" style="margin-top:20px;padding:10px 20px;">Zavřít J</button>`;
+                setTimeout(() => { document.getElementById('closeMenu').onclick = () => { stats.gameState='play'; menu.style.display='none'; }; }, 100);
+            }
+        }
+        if(e.code === 'KeyU' && stats.gameState === 'play') {
+            stats.phoneOpen = !stats.phoneOpen;
+            phoneUI.style.display = stats.phoneOpen ? 'block' : 'none';
+            if(stats.phoneOpen) {
+                document.exitPointerLock();
+                document.getElementById('phoneMoney').innerText = stats.money;
+                document.getElementById('phoneWanted').innerText = stats.wanted;
+                document.getElementById('phoneBank').innerText = stats.bankMoney;
+            }
+        }
+        if(e.code === 'KeyF' && stats.gameState === 'play') {
+            inventoryUI.style.display = 'block';
+            document.getElementById('inventoryList').innerHTML = stats.inventory.map(w => `<p>${w}</p><button class="equipWeapon" data-name="${w}">Vybavit</button>`).join('');
+            document.exitPointerLock();
+            Array.from(document.querySelectorAll('.equipWeapon')).forEach(btn => {
+                btn.onclick = () => { stats.currentWeapon = btn.dataset.name; alert('Vybavil jsi ' + stats.currentWeapon); };
+            });
+        }
+        if(e.code === 'KeyE' && stats.gameState === 'play') {
+            if(stats.inHome) {
+                stats.inHome = false; player.visible = true; player.position.set(-80,0,-45); homeUI.style.display = 'none';
+            } else if(stats.inGarage) {
+                stats.inGarage = false; player.visible = true; player.position.set(-50,0,35); garageUI.style.display = 'none';
+            } else if(stats.inBank) {
+                stats.inBank = false; player.visible = true; player.position.set(70,0,-35); bankUI.style.display = 'none';
+            } else if (player.position.distanceTo(policeStationPos) < 8) {
+                policeUI.style.display = 'block'; player.visible = false; stats.gameState = 'police';
+            } else if (player.position.distanceTo(gunShopPos) < 8) {
+                gunShopUI.style.display = 'block'; player.visible = false;
+            } else if(!stats.inCar && !stats.onMotorbike) {
+                const distCar = player.position.distanceTo(playerCar.position);
+                const distBike = player.position.distanceTo(motorbikeVehicle.position);
+                if(distCar < 3) {
+                    stats.inCar = true; player.visible = false; startEngine(); carHealthBar.style.display = 'block';
+                } else if(distBike < 3) {
+                    stats.onMotorbike = true; player.visible = false; startEngine();
+                } else {
+                    if(player.position.distanceTo(homePos) < 8) {
+                        stats.inHome = true; player.visible = false; homeUI.style.display = 'block';
+                    } else if(player.position.distanceTo(garagePos) < 8) {
+                        stats.inGarage = true; player.visible = false; garageUI.style.display = 'block';
+                    } else if(player.position.distanceTo(bankPos) < 8) {
+                        stats.inBank = true; player.visible = false; bankUI.style.display = 'block';
+                        document.getElementById('bankMoney').innerText = stats.bankMoney;
+                    }
+                }
+            } else if(stats.inCar) {
+                stats.inCar = false; player.visible = true; player.position.copy(playerCar.position); player.position.x += 3;
+                stopEngine(); carHealthBar.style.display = 'none';
+            } else if(stats.onMotorbike) {
+                stats.onMotorbike = false; player.visible = true; player.position.copy(motorbikeVehicle.position); player.position.x += 2;
+                stopEngine();
+            } else if(stats.gameState === 'police') {
+                stats.gameState = 'play'; policeUI.style.display = 'none'; player.visible = true;
+                player.position.set(policeStationPos.x+5, 0, policeStationPos.z);
+            }
+        }
+    });
+    window.addEventListener('keyup', (e) => { keys[e.code] = false; });
+    document.body.addEventListener('click', () => {
+        if(stats.gameState === 'play' && !stats.phoneOpen && !stats.inHome && !stats.inGarage && !stats.inBank)
+            document.body.requestPointerLock();
+    });
+    document.addEventListener('mousemove', (e) => {
+        if(document.pointerLockElement === document.body) yaw -= e.movementX * 0.002;
+    });
+
+    // UI event listeners
+    setTimeout(() => {
+        document.getElementById('sleepBtn').onclick = () => {
+            stats.energy = 100; gameTime.hour = (gameTime.hour + 6) % 24;
+            document.getElementById('homeEnergy').innerText = 100;
+        };
+        document.getElementById('tvBtn').onclick = () => { tvUI.style.display = 'block'; };
+        document.getElementById('tvClose').onclick = () => { tvUI.style.display = 'none'; };
+        const tvChannels = {'1':'ZPRÁVY: Krásný den! Počasí: Slunečno 22°C','2':'RELAX: Krásné vlny a písek!','3':'VAŘENÍ: Dnes vaříme pizzu!','4':'NÁBYTEK: Nový nábytek za -50%!'};
+        ['ch1','ch2','ch3','ch4'].forEach((id,i) => { document.getElementById(id).onclick = () => { document.getElementById('tvContent').innerText = tvChannels[String(i+1)]; }; });
+        document.getElementById('exitHome').onclick = () => { stats.inHome = false; player.visible = true; player.position.set(-80,0,-45); homeUI.style.display = 'none'; };
+        document.getElementById('depositBtn').onclick = () => { if(stats.money>=100){stats.money-=100;stats.bankMoney+=100;document.getElementById('bankMoney').innerText=stats.bankMoney;} };
+        document.getElementById('withdrawBtn').onclick = () => { if(stats.bankMoney>=100){stats.bankMoney-=100;stats.money+=100;document.getElementById('bankMoney').innerText=stats.bankMoney;} };
+        document.getElementById('robBtn').onclick = () => { stats.bankMoney=0;stats.money+=500;stats.wanted+=3;document.getElementById('bankMoney').innerText=0;stats.inBank=false;player.visible=true;bankUI.style.display='none';player.position.set(70,0,-35); };
+        document.getElementById('exitBank').onclick = () => { stats.inBank=false;player.visible=true;bankUI.style.display='none';player.position.set(70,0,-35); };
+        document.getElementById('colorBtn').onclick = () => {
+            const picker = document.getElementById('colorPicker');
+            picker.style.display = picker.style.display==='none' ? 'block' : 'none';
+            if(picker.style.display==='block') {
+                picker.innerHTML = '';
+                [{name:'Červená',hex:0xff0000},{name:'Modrá',hex:0x0000ff},{name:'Zelená',hex:0x00ff00},{name:'Žlutá',hex:0xffff00},{name:'Oranžová',hex:0xff6600},{name:'Růžová',hex:0xff1493}].forEach(col => {
+                    const btn = document.createElement('button');
+                    btn.innerText = col.name;
+                    btn.style.cssText = `background:#${col.hex.toString(16).padStart(6,'0')};color:#fff;padding:8px 12px;margin:5px;cursor:pointer;border:none;`;
+                    btn.onclick = () => { if(stats.money>=10){stats.money-=10;playerCar.children[0].material.color.setHex(col.hex);playerCar.children[1].material.color.setHex(col.hex);picker.style.display='none';} };
+                    picker.appendChild(btn);
+                });
+            }
+        };
+        document.getElementById('fixBtn').onclick = () => { if(stats.money>=100){stats.money-=100;stats.carHealth=100;document.getElementById('repairBtn').style.display='none';} };
+        document.getElementById('exitGarage').onclick = () => { stats.inGarage=false;player.visible=true;player.position.set(-50,0,35);garageUI.style.display='none'; };
+        document.getElementById('pizzaBtn').onclick = () => {
+            if(!stats.currentDelivery) {
+                const house = deliveryHouses[Math.floor(Math.random()*deliveryHouses.length)];
+                stats.currentDelivery = {type:'pizza',house,reward:50};
+                alert(`Dojeď k domu ${house.number}`);
+                stats.phoneOpen = false; phoneUI.style.display = 'none';
+            }
+        };
+        document.getElementById('taxiBtn').onclick = () => { stats.money+=40; alert('Taxi! +40 Kč'); };
+        document.getElementById('uberBtn').onclick = () => { if(stats.money>=15){stats.money-=15;player.position.set(Math.random()*80-40,0,Math.random()*80-40);alert('Uber tě vyzvedl!');} };
+        document.getElementById('phoneClose').onclick = () => { stats.phoneOpen=false;phoneUI.style.display='none'; };
+        document.getElementById('gpsBtn').onclick = () => { gpsUI.style.display='block';phoneUI.style.display='none';document.getElementById('gpsPos').innerText=`x=${player.position.x.toFixed(2)}, z=${player.position.z.toFixed(2)}`; };
+        document.getElementById('gpsClose').onclick = () => { gpsUI.style.display='none';phoneUI.style.display='block'; };
+        document.getElementById('callsBtn').onclick = () => { callsUI.style.display='block';phoneUI.style.display='none'; };
+        document.getElementById('callsClose').onclick = () => { callsUI.style.display='none';phoneUI.style.display='block'; };
+        document.getElementById('callPolice').onclick = () => { alert('Voláš policii...'); };
+        document.getElementById('msgPolice').onclick = () => { msgUI.style.display='block';callsUI.style.display='none';msgUI.dataset.contact='police'; };
+        document.getElementById('callFriend').onclick = () => { alert('Voláš kamarádovi...'); };
+        document.getElementById('msgFriend').onclick = () => { msgUI.style.display='block';callsUI.style.display='none';msgUI.dataset.contact='friend'; };
+        document.getElementById('msgClose').onclick = () => { msgUI.style.display='none';callsUI.style.display='block'; };
+        document.getElementById('sendMsg').onclick = () => {
+            const message = document.getElementById('msgInput').value.toLowerCase();
+            const contact = msgUI.dataset.contact;
+            if(contact==='police' && message.includes('neheskou')) { stats.wanted+=1; alert('Dostal jsi wanted!'); }
+            else if(contact==='friend' && message.includes('mise')) {
+                const reward = Math.floor(Math.random()*500)+100;
+                stats.money += reward;
+                alert(`Splnil jsi misi! +${reward} Kč`);
+            }
+            document.getElementById('msgInput').value='';
+            msgUI.style.display='none'; callsUI.style.display='block';
+        };
+        document.getElementById('closeFine').onclick = () => { fineUI.style.display='none'; };
+        document.getElementById('payFine').onclick = () => {
+            if(stats.money>=200 && stats.hasFine){stats.money-=200;stats.hasFine=false;stats.fineTimer=0;alert('Pokuta zaplacena!');policeUI.style.display='none';stats.gameState='play';player.visible=true;player.position.set(policeStationPos.x+5,0,policeStationPos.z);}
+        };
+        document.getElementById('exitPolice').onclick = () => { policeUI.style.display='none';stats.gameState='play';player.visible=true;player.position.set(policeStationPos.x+5,0,policeStationPos.z); };
+        Array.from(document.querySelectorAll('.buyWeapon')).forEach(btn => {
+            btn.onclick = () => {
+                const price = parseInt(btn.dataset.price);
+                if(stats.money>=price){stats.money-=price;stats.inventory.push(btn.dataset.name);alert('Koupil jsi '+btn.dataset.name);}
+            };
+        });
+        document.getElementById('exitGunShop').onclick = () => { gunShopUI.style.display='none';player.visible=true; };
+        document.getElementById('closeInventory').onclick = () => { inventoryUI.style.display='none'; };
+    }, 100);
+
+    window.addEventListener('mousedown', (e) => {
+        if(e.button===0 && document.pointerLockElement===document.body && !stats.inCar && !stats.onMotorbike) {
+            for(let i = npcs.length-1; i >= 0; i--) {
+                if(player.position.distanceTo(npcs[i].position) < 2.5) {
+                    stats.money += 20; stats.wanted++;
+                    scene.remove(npcs[i]); npcs.splice(i,1); break;
+                }
+            }
+            if(stats.currentWeapon) alert('Střílíš z ' + stats.currentWeapon);
+        }
+    });
+
+    function animate() {
+        requestAnimationFrame(animate);
+        timeDisplay.innerText = formatTime();
+        let hudText = `Peníze: ${stats.money} Kč | Wanted: ${stats.wanted}<br>`;
+        if(stats.hasFine) hudText += `Pokuta: Zbývá ${Math.floor(stats.fineTimer/1000)} sekund<br>`;
+        if(stats.inHome) hudText = 'DOMOV | E: Odejít<br>';
+        else if(stats.inGarage) hudText = 'AUTOSERVIS | E: Odejít<br>';
+        else if(stats.inBank) hudText = 'BANKA | E: Odejít<br>';
+        else if(player.position.distanceTo(policeStationPos) < 8) hudText += 'POLICEJNÍ STANICE | E: Vstoupit<br>';
+        else {
+            hudText += stats.inCar ? 'V autě (Space: Handbrake)' : stats.onMotorbike ? 'Na motorce' : 'E: Nastoupit';
+            hudText += '<br>U: Telefon | J: Menu | Klik: Pěst';
+        }
+        hud.innerHTML = hudText;
+        const energyColor = stats.energy > 50 ? '#00ff00' : stats.energy > 25 ? '#ffaa00' : '#ff0000';
+        energyBar.innerHTML = `Energie: <span style="color:${energyColor};">${Math.floor(stats.energy)}</span>/100`;
+        if(stats.inCar) {
+            const barColor = stats.carHealth > 50 ? '#00ff00' : stats.carHealth > 25 ? '#ffaa00' : '#ff0000';
+            carHealthBar.innerHTML = `Auto: <span style="color:${barColor};">${Math.floor(stats.carHealth)}</span>/100`;
+        }
+        if(stats.gameState === 'play') {
+            if(stats.inCar) {
+                const forwardDir = new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
+                const lateralDir = new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
+                if(keys['KeyW']) carVelocity.addScaledVector(forwardDir, 0.08);
+                if(keys['KeyS']) carVelocity.addScaledVector(forwardDir, -0.04);
+                const isHandbrake = keys['Space'];
+                if(isHandbrake) { const lc = carVelocity.dot(lateralDir); carVelocity.sub(lateralDir.clone().multiplyScalar(lc*0.6)); }
+                if(keys['KeyA']) yaw += 0.03 * (isHandbrake ? 1.5 : 1);
+                if(keys['KeyD']) yaw -= 0.03 * (isHandbrake ? 1.5 : 1);
+                playerCar.rotation.y = yaw;
+                carVelocity.multiplyScalar(0.97);
+                if(carVelocity.length() > MAX_SPEED) carVelocity.normalize().multiplyScalar(MAX_SPEED);
+                playerCar.position.add(carVelocity);
+                const velocityNorm = carVelocity.clone().normalize();
+                const driftAngle = Math.acos(Math.max(-1,Math.min(1,forwardDir.dot(velocityNorm)))) * (180/Math.PI);
+                const isDrifting = driftAngle > DRIFT_ANGLE_THRESHOLD && carVelocity.length() > 0.2;
+                if(isDrifting) {
+                    const wp = getRearWheelWorldPositions();
+                    leftSkidPositions.push(wp.left); rightSkidPositions.push(wp.right);
+                    if(leftSkidPositions.length > MAX_SKID_LENGTH) leftSkidPositions.shift();
+                    if(rightSkidPositions.length > MAX_SKID_LENGTH) rightSkidPositions.shift();
+                    if(Math.random()>0.6){spawnSmoke(wp.left);spawnSmoke(wp.right);}
+                }
+                updateSkidLines();
+                for(let npc of npcs) { if(playerCar.position.distanceTo(npc.position)<2.5){stats.carHealth-=3;stats.wanted++;} }
+                trafficLights.forEach(tl => {
+                    if(playerCar.position.distanceTo(tl.position)<5 && trafficLightState==='red' && carVelocity.length()>0.1) {
+                        if(!stats.hasFine){stats.hasFine=true;stats.fineTimer=300000;fineUI.style.display='block';alert('Projel jsi na červenou! Pokuta.');}
+                    }
+                });
+                if(stats.carHealth<=0){
+                    stats.inCar=false;player.visible=true;playerCar.position.set(-50,0.5,20);player.position.set(-50,0,35);
+                    stats.inGarage=true;garageUI.style.display='block';document.getElementById('repairBtn').style.display='block';
+                    stopEngine();carHealthBar.style.display='none';
+                }
+                if(engineFilter) engineFilter.frequency.value = 150 + carVelocity.length() * 2000;
+            } else if(stats.onMotorbike) {
+                motorbikeVehicle.rotation.y = yaw;
+                let mZ = 0;
+                if(keys['KeyW']) mZ=0.4;
+                if(keys['KeyS']) mZ=-0.2;
+                if(keys['KeyA']) yaw+=0.04;
+                if(keys['KeyD']) yaw-=0.04;
+                motorbikeVehicle.translateZ(mZ);
+                if(stats.currentDelivery && mZ!==0 && motorbikeVehicle.position.distanceTo(stats.currentDelivery.house.pos)<5){
+                    stats.money+=stats.currentDelivery.reward;alert(`Doručeno! +${stats.currentDelivery.reward} Kč`);stats.currentDelivery=null;
+                }
+                if(engineFilter) engineFilter.frequency.value = 150 + Math.abs(mZ)*2000;
+            } else {
+                player.rotation.y = yaw;
+                let mZ=0, mX=0;
+                if(keys['KeyW']) mZ=0.15; if(keys['KeyS']) mZ=-0.15;
+                if(keys['KeyA']) mX=0.15; if(keys['KeyD']) mX=-0.15;
+                player.translateZ(mZ); player.translateX(mX);
+                const time = Date.now()*0.01;
+                if(mZ!==0||mX!==0){
+                    player.parts.legL.rotation.x=Math.sin(time)*0.5; player.parts.legR.rotation.x=-Math.sin(time)*0.5;
+                    player.parts.armL.rotation.x=-Math.sin(time)*0.5; player.parts.armR.rotation.x=Math.sin(time)*0.5;
+                    if(!stats.inHome) stats.energy-=0.1;
+                }
+                if(keys['Backspace'] && player.position.y<=0) velocityY=0.2;
+                player.position.y += velocityY;
+                if(player.position.y>0) velocityY-=0.01;
+                else { velocityY=0; player.position.y=0; }
+            }
+            npcs.forEach(npc => {
+                npc.position.z += npc.direction*0.05;
+                npc.rotation.y = npc.direction>0?0:Math.PI;
+                const time = Date.now()*0.01;
+                npc.parts.legL.rotation.x=Math.sin(time)*0.5; npc.parts.legR.rotation.x=-Math.sin(time)*0.5;
+                if(npc.position.z>15||npc.position.z<-15) npc.direction*=-1;
+            });
+            if(stats.wanted>0){
+                const target = stats.inCar?playerCar.position:stats.onMotorbike?motorbikeVehicle.position:player.position;
+                copCar.lookAt(target); copCar.translateZ(0.25);
+                startSiren();
+                if(copCar.position.distanceTo(target)<3){
+                    stats.gameState='arrest'; document.exitPointerLock();
+                    arrestScreen.style.display='flex';
+                    arrestScreen.innerHTML=`<h1>ZATČENI!</h1><p>Byl jsi zatčen za ${stats.wanted} přestupků!</p><button id="payCaution" style="margin:10px;padding:10px 20px;cursor:pointer;">Zaplatit kauci 100 Kč</button><button id="goToCourt" style="margin:10px;padding:10px 20px;cursor:pointer;">Jít na soud</button>`;
+                    if(stats.inCar){stats.inCar=false;player.visible=true;player.position.copy(playerCar.position);stopEngine();carHealthBar.style.display='none';}
+                    else if(stats.onMotorbike){stats.onMotorbike=false;player.visible=true;player.position.copy(motorbikeVehicle.position);stopEngine();}
+                    player.position.copy(jailPos); stats.inJail=true; stats.jailTime=300000;
+                    setTimeout(()=>{stats.inJail=false;player.position.set(0,0,0);stats.gameState='play';arrestScreen.style.display='none';},stats.jailTime);
+                    document.getElementById('payCaution').onclick=()=>{if(stats.money>=100){stats.money-=100;stats.wanted=0;arrestScreen.style.display='none';stats.gameState='play';}};
+                    document.getElementById('goToCourt').onclick=()=>{
+                        arrestScreen.style.display='none'; stats.inCourt=true; courtUI.style.display='block';
+                        courtUI.innerHTML=`<h2>SOUD</h2><p>Soudce: Byl jsi odsouzen za ${stats.wanted} přestupků!</p><p>Čekej 30 sekund...</p>`;
+                        let ct=30; const ci=setInterval(()=>{ct--;if(ct<=0){clearInterval(ci);courtUI.innerHTML='<h2>SOUD</h2><p>Soudce: Jsi volný!</p>';stats.wanted=0;setTimeout(()=>{stats.inCourt=false;courtUI.style.display='none';stats.gameState='play';},1000);}},1000);
+                    };
+                }
+            } else stopSiren();
+            const followTarget = stats.inCar?playerCar:stats.onMotorbike?motorbikeVehicle:player;
+            const targetPos = new THREE.Vector3(0,5,-8).applyMatrix4(followTarget.matrixWorld);
+            camera.position.lerp(targetPos, 0.1);
+            camera.lookAt(followTarget.position.x, followTarget.position.y+1, followTarget.position.z);
+        }
+        renderer.render(scene, camera);
+    }
+    startNoise();
+    animate();
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth/window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+};
+</script>
+</body>
+</html>
